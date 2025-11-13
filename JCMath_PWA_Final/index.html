@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>JCMath</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b1020">
+<link rel="icon" href="icon.png">
+<style>
+  :root{--blue:#0b6fd6;--bg:#0b1020;--white:#ffffff}
+  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;background:var(--blue);color:var(--white);-webkit-text-size-adjust:none}
+  .center{display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column}
+  /* Splash */
+  #splash{position:fixed;inset:0;background:var(--blue);display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:9999;overflow:hidden}
+  #title{font-size:44px;font-weight:400;margin:0}
+  #loading{font-size:14px;margin-top:8px;opacity:0.95}
+  .symbol{position:absolute;font-size:24px;color:rgba(255,255,255,0.9);will-change:transform;pointer-events:none}
+  /* menu */
+  #menu{display:none;height:100vh;box-sizing:border-box;padding:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--blue)}
+  .buttons{display:flex;flex-direction:column;gap:16px;width:85%;max-width:420px}
+  .btn{background:var(--white);color:var(--blue);padding:14px;border-radius:12px;border:none;font-size:18px;font-weight:600}
+  .coming{opacity:0.9;font-size:14px;color:rgba(255,255,255,0.95);margin-top:6px;text-align:center}
+  #version{position:fixed;right:12px;bottom:12px;font-size:12px;color:rgba(255,255,255,0.85)}
+  /* game view */
+  #gameView{display:none;background:#081226;height:100vh;box-sizing:border-box;padding:18px;position:relative}
+  #gameCanvas{width:100%;height:70vh;background:#04101b;border-radius:12px;display:block}
+  #backBtn{position:absolute;left:12px;top:12px;background:rgba(255,255,255,0.95);color:var(--blue);border:none;padding:8px 12px;border-radius:8px;font-weight:700}
+  #gameHeader{display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+  #scoreboard{color:white;text-align:center;margin-top:10px}
+  /* transitions */
+  .fade-out{animation:fadeOut 1s forwards}
+  .fade-in{animation:fadeIn 1s forwards}
+  @keyframes fadeOut{to{opacity:0;visibility:hidden}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  /* responsive */
+  @media (max-width:520px){#title{font-size:36px} .btn{font-size:16px;padding:12px}}
+</style>
+</head>
+<body>
+  <div id="splash" aria-hidden="false">
+    <div id="title">JCMath</div>
+    <div id="loading">Loading...</div>
+  </div>
+
+  <main id="menu" aria-hidden="true" class="center">
+    <div class="buttons">
+      <button class="btn" id="minecraftBtn">Minecraft Game</button>
+      <div class="coming">Coming Soon</div>
+      <button class="btn" id="carBtn">Car Game</button>
+      <div class="coming">Coming Soon</div>
+      <button class="btn" id="paddleBtn">Paddle Game</button>
+    </div>
+    <div id="version">Version 1.0</div>
+  </main>
+
+  <section id="gameView" aria-hidden="true">
+    <button id="backBtn">Back</button>
+    <div id="gameHeader"><h2 style="color:white;margin:0">Paddle Game</h2></div>
+    <canvas id="gameCanvas" width="800" height="540" role="img" aria-label="Paddle game canvas"></canvas>
+    <div id="scoreboard">Score: <span id="score">0</span></div>
+  </section>
+
+<script>
+// register SW
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('service-worker.js').catch(()=>{}); }
+
+// splash symbols generator (lively)
+// create symbols and animate upward with random paths
+const symbols = ['+','−','×','÷'];
+const splash = document.getElementById('splash');
+function spawnSymbol(){
+  const s = document.createElement('div');
+  s.className='symbol';
+  s.textContent = symbols[Math.floor(Math.random()*symbols.length)];
+  const size = 18 + Math.random()*30;
+  s.style.fontSize = size + 'px';
+  const startX = Math.random()*100;
+  s.style.left = startX + '%';
+  s.style.top = (60 + Math.random()*30) + '%';
+  const dur = 1400 + Math.random()*1600;
+  const drift = (Math.random()*60 - 30);
+  s.style.transition = 'transform ' + (dur/1000) + 's linear, opacity ' + (dur/1000) + 's linear';
+  splash.appendChild(s);
+  requestAnimationFrame(()=>{
+    s.style.transform = 'translate(' + drift + 'px,' + (-200 - Math.random()*200) + 'px) scale(0.9)';
+    s.style.opacity = '0';
+  });
+  setTimeout(()=>s.remove(), dur+200);
+}
+
+let symInterval = setInterval(spawnSymbol, 250);
+
+// After 3 seconds, transition to menu with fade
+setTimeout(()=>{
+  clearInterval(symInterval);
+  // fade splash then show menu
+  splash.classList.add('fade-out');
+  setTimeout(()=>{ splash.style.display='none'; document.getElementById('menu').style.display='flex'; document.getElementById('menu').classList.add('fade-in'); }, 1000);
+}, 3000);
+
+// Menu button actions
+document.getElementById('minecraftBtn').addEventListener('click', ()=>{ alert('Minecraft Game - Coming Soon'); });
+document.getElementById('carBtn').addEventListener('click', ()=>{ alert('Car Game - Coming Soon'); });
+document.getElementById('paddleBtn').addEventListener('click', ()=>{ showGame(); });
+
+// Game view and paddle game logic
+const gameView = document.getElementById('gameView');
+const menu = document.getElementById('menu');
+const backBtn = document.getElementById('backBtn');
+backBtn.addEventListener('click', ()=>{ hideGame(); });
+
+function showGame(){
+  menu.style.display='none';
+  gameView.style.display='block';
+  gameView.classList.add('fade-in');
+  startPaddle();
+}
+function hideGame(){
+  gameView.style.display='none';
+  menu.style.display='flex';
+  menu.classList.add('fade-in');
+  stopPaddle();
+}
+
+// Simple paddle game implementation
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let W = canvas.width, H = canvas.height;
+let paddle = {w:120,h:14,x:(W-120)/2,y:H-40,speed:8};
+let ball = {x:W/2,y:H/2,r:9,vx:4,vy:-4,moving:false};
+let bricks = [];
+let score = 0;
+const scoreEl = document.getElementById('score');
+
+function buildBricks(){ bricks=[]; const rows=4, cols=7, bw=90, bh=20, gap=10; const offsetX=(W-(cols*bw+(cols-1)*gap))/2; const offsetY=60; for(let r=0;r<rows;r++){ for(let c=0;c<cols;c++){ bricks.push({x:offsetX + c*(bw+gap), y:offsetY + r*(bh+gap), w:bw, h:bh, alive:true}); } } }
+
+function resetBall(){ ball.x=paddle.x+paddle.w/2; ball.y=paddle.y-16; ball.vx=4*(Math.random()>0.5?1:-1); ball.vy=-5; ball.moving=false; }
+
+function draw(){ ctx.clearRect(0,0,W,H); // bricks
+  bricks.forEach(b=>{ if(!b.alive) return; ctx.fillStyle='#1f6feb'; ctx.fillRect(b.x,b.y,b.w,b.h); ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.strokeRect(b.x,b.y,b.w,b.h); });
+  // paddle
+  ctx.fillStyle='#fff'; roundRect(ctx,paddle.x,paddle.y,paddle.w,paddle.h,8,true,false);
+  // ball
+  ctx.beginPath(); ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2); ctx.fillStyle='#ffb86b'; ctx.fill();
+  requestAnimationFrame(loop);
+}
+
+function loop(){ update(); draw(); }
+
+function update(){
+  if(ball.moving){
+    ball.x += ball.vx; ball.y += ball.vy;
+    if(ball.x - ball.r < 0){ ball.x = ball.r; ball.vx *= -1 }
+    if(ball.x + ball.r > W){ ball.x = W - ball.r; ball.vx *= -1 }
+    if(ball.y - ball.r < 0){ ball.y = ball.r; ball.vy *= -1 }
+    // paddle collision
+    if(ball.y + ball.r > paddle.y && ball.x > paddle.x && ball.x < paddle.x + paddle.w && ball.vy>0){
+      ball.vy *= -1;
+      const hitPos = (ball.x - (paddle.x + paddle.w/2))/(paddle.w/2);
+      ball.vx += hitPos*2;
+    }
+    // bricks
+    bricks.forEach(b=>{ if(!b.alive) return; if(ball.x > b.x && ball.x < b.x + b.w && ball.y - ball.r < b.y + b.h && ball.y + ball.r > b.y){ b.alive=false; score+=10; scoreEl.textContent=score; if(score> Number(localStorage.getItem('jcmath-high')||0)){ localStorage.setItem('jcmath-high', score)} ball.vy *= -1; } });
+    if(ball.y - ball.r > H){ score=0; scoreEl.textContent=score; buildBricks(); resetBall(); }
+  } else {
+    ball.x = paddle.x + paddle.w/2; ball.y = paddle.y - 16;
+  }
+}
+
+function roundRect(ctx,x,y,w,h,r,fill,stroke){ if(typeof r==='undefined') r=5; ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); if(fill) ctx.fill(); if(stroke) ctx.stroke(); }
+
+// input
+let keys = {};
+window.addEventListener('keydown', e=>{ keys[e.key]=true; if(e.code==='Space'){ ball.moving = !ball.moving } if(['ArrowLeft','ArrowRight'].includes(e.code)){ e.preventDefault(); } });
+window.addEventListener('keyup', e=>{ keys[e.key]=false; });
+canvas.addEventListener('mousemove', e=>{ const rect = canvas.getBoundingClientRect(); const scaleX = canvas.width / rect.width; const x = (e.clientX - rect.left) * scaleX; paddle.x = Math.max(8, Math.min(W - paddle.w - 8, x - paddle.w/2)); });
+canvas.addEventListener('touchmove', e=>{ e.preventDefault(); const touch = e.touches[0]; const rect = canvas.getBoundingClientRect(); const scaleX = canvas.width / rect.width; const x = (touch.clientX - rect.left) * scaleX; paddle.x = Math.max(8, Math.min(W - paddle.w - 8, x - paddle.w/2)); }, {passive:false});
+
+function tickControls(){ if(keys['ArrowLeft']||keys['a']) paddle.x -= paddle.speed; if(keys['ArrowRight']||keys['d']) paddle.x += paddle.speed; paddle.x = Math.max(8, Math.min(W - paddle.w - 8, paddle.x)); requestAnimationFrame(tickControls); }
+
+// UI Back to menu already handled
+function startPaddle(){ W = canvas.width; H = canvas.height; buildBricks(); resetBall(); tickControls(); loop(); }
+function stopPaddle(){ /* simple stop by reloading to clear animation frames if needed */ }
+
+// make Back button work visually
+backBtn.addEventListener('touchstart', ()=>{ hideGame(); });
+// Also ensure buttons on menu don't show outlines
+document.querySelectorAll('.btn').forEach(b=>b.addEventListener('touchstart', ()=>{}));
+
+</script>
+
+<audio id="bg-music" autoplay loop>
+  <source src="background.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+  const music = document.getElementById("bg-music");
+  document.addEventListener("DOMContentLoaded", () => {
+    const playPromise = music.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        const button = document.createElement("button");
+        button.textContent = "Tap to Start Music 🎵";
+        Object.assign(button.style, {
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          padding: "15px 25px",
+          fontSize: "18px",
+          borderRadius: "12px",
+          background: "#007bff",
+          color: "#fff",
+          border: "none",
+          cursor: "pointer",
+          zIndex: "10000"
+        });
+        button.addEventListener("click", () => {
+          music.play();
+          button.remove();
+        });
+        document.body.appendChild(button);
+      });
+    }
+  });
+</script>
+<button onclick="window.location.href='tiny-fishing.html'">Tiny Fishing</button>
+</body>
+
+</html>
